@@ -1,6 +1,8 @@
 import axios from "axios";
 import { useRouter } from "next/router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Spinner from "./Spinner";
+import { ReactSortable } from "react-sortablejs";
 
 const ProductForm = ({
   _id,
@@ -8,13 +10,23 @@ const ProductForm = ({
   description: existingDescription,
   price: existingPrice,
   images: existingImages,
+  category: existingCategory,
 }) => {
   const [title, setTitle] = useState(existingTitle || "");
+  const [category, setCategory] = useState(existingCategory || "");
+  const [categories, setCategories] = useState([]);
   const [images, setImages] = useState(existingImages || []);
   const [description, setDescription] = useState(existingDescription || "");
   const [price, setPrice] = useState(existingPrice || "");
   const [goProducts, setGoProducts] = useState(false);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    axios.get("/api/category").then((response) => {
+      setCategories(response.data);
+    }, []);
+  });
 
   async function saveProduct(ev) {
     ev.preventDefault();
@@ -23,6 +35,7 @@ const ProductForm = ({
       description,
       price,
       images,
+      category,
     };
     if (_id) {
       //update
@@ -40,13 +53,21 @@ const ProductForm = ({
   async function uploadImages(e) {
     const files = e.target?.files;
     if (files?.length > 0) {
+      setLoading(true);
       const data = new FormData();
       for (const file of files) {
         data.append("file", file);
       }
       const response = await axios.post("/api/upload", data);
-      console.log(response.data);
+      setImages((oldImages) => {
+        return [...oldImages, ...response.data.links];
+      });
+      setLoading(false);
     }
+  }
+
+  function updateImagesOrder(images) {
+    setImages(images);
   }
 
   return (
@@ -58,9 +79,42 @@ const ProductForm = ({
         value={title}
         onChange={(e) => setTitle(e.target.value)}
       />
+      <label>Categoria: </label>
+      <select
+        className="w-full"
+        value={category}
+        onChange={(e) => setCategory(e.target.value)}
+      >
+        <option key={0} value="">
+          Sin categoria
+        </option>
+        {categories.length > 0 &&
+          categories.map((cat) => (
+            <option key={`category #${cat._id}`} value={cat._id}>
+              {cat.name}
+            </option>
+          ))}
+      </select>
       <label>Imagenes del producto</label>
-      <div className="mb-2 flex flex-wrap gap-1">
-        <label className="w-24 h-24 cursor-pointer text-center flex flex-col items-center justify-center text-sm gap-1 text-primary rounded-sm bg-white shadow-sm border border-primary">
+      <div className="mb-2 flex flex-wrap gap-2">
+        <ReactSortable
+          className="flex flex-wrap gap-1"
+          list={images}
+          setList={updateImagesOrder}
+        >
+          {!!images?.length &&
+            images.map((link) => (
+              <div key={link} className="h-24">
+                <img src={link} alt="" className="rounded-lg" />
+              </div>
+            ))}
+        </ReactSortable>
+        {loading && (
+          <div className="h-24 bg-gray-200 p-1 flex items-center">
+            <Spinner />
+          </div>
+        )}
+        <label className=" w-24 h-24 cursor-pointer text-center flex flex-col items-center justify-center text-sm gap-1 text-primary rounded-sm bg-white shadow-sm border border-primary">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"

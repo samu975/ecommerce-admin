@@ -10,7 +10,6 @@ export default function Products() {
       setProducts(response.data);
     });
   }, []);
-  console.log();
   return (
     <LayoutAdmin>
       <Link className="btn-primary" href={"/products/new"}>
